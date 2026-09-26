@@ -1,0 +1,10 @@
+# Hostinger serves this project folder itself as the subdomain's web root,
+# so route every request into public_html/ (Symfony's web folder, renamed
+# by the deploy). Nothing outside it - config, src, vendor, var, .env.local -
+# can be reached, and directory listings are off.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public_html/$1 [L]
+</IfModule>

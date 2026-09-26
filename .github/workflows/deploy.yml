@@ -65,9 +65,9 @@ jobs:
           APP_ENV: prod
         run: php bin/console cache:clear --env=prod --no-interaction
 
-      # Hostinger serves <FTP root>/public_html, so Symfony's web folder is
-      # uploaded under that name. The rest of the project lands beside it,
-      # outside the web root. index.php only refers to ../vendor, so it
+      # Hostinger serves the FTP root itself as the web root; the root
+      # .htaccess routes every request into public_html/, so nothing else in
+      # the project is reachable. index.php only refers to ../vendor, so it
       # doesn't care what its folder is called; SpaController reads the name
       # from APP_PUBLIC_DIR (written to .env.local above).
       - name: Rename public/ to public_html/ for Hostinger
