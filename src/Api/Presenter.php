@@ -2,6 +2,7 @@
 
 namespace App\Api;
 
+use App\Entity\Batch;
 use App\Entity\Brand;
 use App\Entity\Rating;
 use App\Entity\Strain;
@@ -60,8 +61,18 @@ final class Presenter
             'mRating' => $strain->getMRating() ? self::rating($strain->getMRating()) : null,
             'notes' => $strain->getNotes(),
             'terpenes' => array_map(self::terpene(...), $strain->getTerpenes()->getValues()),
+            'batches' => array_map(self::batch(...), $strain->getBatchesNewestFirst()),
             'createdAt' => $strain->getCreatedAt()->format(\DATE_ATOM),
             'updatedAt' => $strain->getUpdatedAt()->format(\DATE_ATOM),
+        ];
+    }
+
+    public static function batch(Batch $batch): array
+    {
+        return [
+            'id' => $batch->getId(),
+            'batchNumber' => $batch->getBatchNumber(),
+            'date' => $batch->getDate()->format('Y-m-d'),
         ];
     }
 

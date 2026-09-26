@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../components/Icon.jsx'
 import MultiSelect from '../components/MultiSelect.jsx'
 import { formatPrice, RatingPill, TerpeneChip, ThcMeter } from '../components/Pills.jsx'
+import { formatDate } from '../dates.js'
 import { useApi } from '../hooks/useApi.js'
 import { RATERS } from '../raters.js'
 
@@ -13,7 +14,13 @@ const SORTS = {
   thc: { label: 'Strongest THC', compare: (a, b) => (b.thcPercent ?? -1) - (a.thcPercent ?? -1) },
   priceAsc: { label: 'Cheapest', compare: (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity) },
   priceDesc: { label: 'Priciest', compare: (a, b) => (b.price ?? -1) - (a.price ?? -1) },
+  batch: { label: 'Latest batch', compare: (a, b) => latestBatchDate(b).localeCompare(latestBatchDate(a)) || a.name.localeCompare(b.name) },
   updated: { label: 'Recently updated', compare: (a, b) => b.updatedAt.localeCompare(a.updatedAt) },
+}
+
+// Batches arrive newest first; '' sorts strains with none to the end.
+function latestBatchDate(strain) {
+  return strain.batches[0]?.date ?? ''
 }
 
 function combinedScore(strain) {
@@ -56,7 +63,7 @@ export default function StrainsPage() {
   const visible = (strains.data ?? [])
     .filter((s) => {
       if (needle) {
-        const haystack = [s.name, s.brand.name, s.genetics, s.type?.name, s.notes, ...s.terpenes.map((t) => t.name)]
+        const haystack = [s.name, s.brand.name, s.genetics, s.type?.name, s.notes, ...s.terpenes.map((t) => t.name), ...s.batches.map((b) => b.batchNumber)]
           .filter(Boolean).join(' ').toLowerCase()
         if (!haystack.includes(needle)) return false
       }
@@ -111,7 +118,7 @@ export default function StrainsPage() {
           <Icon name="search" />
           <input
             type="search"
-            placeholder="Search strain, brand, genetics, terpene…"
+            placeholder="Search strain, brand, terpene, batch no…"
             value={q}
             onChange={(e) => update({ q: e.target.value })}
             aria-label="Search strains"
@@ -239,10 +246,23 @@ function StrainCard({ strain }) {
 
       {strain.genetics && <p className="strain-card__genetics" title={strain.genetics}>{strain.genetics}</p>}
 
+      <BatchSummary batches={strain.batches} />
+
       <div className="strain-card__ratings">
         {RATERS.map((r) => <RatingPill key={r.key} rater={r.name} rating={strain[r.key]} />)}
       </div>
     </Link>
+  )
+}
+
+function BatchSummary({ batches }) {
+  if (!batches.length) return <p className="batch-summary muted">No batches recorded</p>
+  return (
+    <p className="batch-summary" title={`${batches.length} ${batches.length === 1 ? 'batch' : 'batches'}, latest ${batches[0].batchNumber}`}>
+      <span className="count-pill">{batches.length}</span>
+      <strong>{batches[0].batchNumber}</strong>
+      <span>· {formatDate(batches[0].date)}</span>
+    </p>
   )
 }
 
@@ -254,6 +274,7 @@ const COLUMNS = [
   { label: 'Terpenes' },
   { label: 'Genetics' },
   ...RATERS.map((r) => ({ label: r.label, sort: 'rating' })),
+  { label: 'Batches', sort: 'batch' },
   { label: 'Price', sort: 'priceAsc' },
 ]
 
@@ -288,6 +309,13 @@ function StrainTable({ strains, sort, onSort, onOpen }) {
               </td>
               <td className="table__genetics">{s.genetics ?? '–'}</td>
               {RATERS.map((r) => <td key={r.key}><RatingPill rating={s[r.key]} /></td>)}
+              <td className="table__batches">
+                {s.batches.length ? (
+                  <>
+                    <strong>{s.batches.length}</strong> <span className="muted">· {formatDate(s.batches[0].date)}</span>
+                  </>
+                ) : <span className="muted">–</span>}
+              </td>
               <td className="num">{formatPrice(s.price)}</td>
             </tr>
           ))}

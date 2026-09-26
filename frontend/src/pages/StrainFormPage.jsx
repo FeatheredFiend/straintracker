@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client.js'
 import { useAuth } from '../auth/AuthContext.jsx'
+import BatchEditor, { newBatch } from '../components/BatchEditor.jsx'
 import Field from '../components/Field.jsx'
 import Icon from '../components/Icon.jsx'
 import MultiSelect from '../components/MultiSelect.jsx'
@@ -9,7 +10,8 @@ import { useToast } from '../components/Toast.jsx'
 import { useApi } from '../hooks/useApi.js'
 import { RATERS } from '../raters.js'
 
-const EMPTY = {
+// A new strain starts with one batch row, as the first purchase.
+const emptyForm = () => ({
   name: '',
   brandId: '',
   typeId: '',
@@ -20,7 +22,8 @@ const EMPTY = {
   terpeneIds: [],
   aRatingId: '',
   mRatingId: '',
-}
+  batches: [newBatch()],
+})
 
 function toForm(strain) {
   return {
@@ -32,6 +35,7 @@ function toForm(strain) {
     genetics: strain.genetics ?? '',
     notes: strain.notes ?? '',
     terpeneIds: strain.terpenes.map((t) => t.id),
+    batches: strain.batches.map((b) => ({ id: b.id, batchNumber: b.batchNumber, date: b.date })),
     ...Object.fromEntries(RATERS.map((r) => [r.idKey, strain[r.key] ? String(strain[r.key].id) : ''])),
   }
 }
@@ -41,7 +45,7 @@ export default function StrainFormPage() {
   const isEdit = Boolean(id)
   const lookups = useApi('/api/lookups')
   const { user } = useAuth()
-  const [form, setForm] = useState(isEdit ? null : EMPTY)
+  const [form, setForm] = useState(isEdit ? null : emptyForm)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
@@ -59,7 +63,8 @@ export default function StrainFormPage() {
     setSaving(true)
     setErrors({})
     try {
-      const saved = isEdit ? await api.put(`/api/strains/${id}`, form) : await api.post('/api/strains', form)
+      const body = { ...form, batches: form.batches.map(({ id: batchId, batchNumber, date }) => ({ id: batchId, batchNumber, date })) }
+      const saved = isEdit ? await api.put(`/api/strains/${id}`, body) : await api.post('/api/strains', body)
       toast(isEdit ? 'Changes saved' : `${saved.name} added`)
       navigate(`/strains/${saved.id}`, { replace: true })
     } catch (err) {
@@ -115,6 +120,10 @@ export default function StrainFormPage() {
             <Field label="Price (£)" error={errors.price}>
               {(fid) => <input id={fid} className="input" type="number" inputMode="decimal" min="0" step="0.01" value={form.price} onChange={set('price')} />}
             </Field>
+          </div>
+
+          <div className="form-grid__full">
+            <BatchEditor batches={form.batches} onChange={set('batches')} errors={errors} />
           </div>
 
           <Field label="Terpenes" error={errors.terpeneIds} className="form-grid__full">

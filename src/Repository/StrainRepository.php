@@ -26,12 +26,13 @@ class StrainRepository extends ServiceEntityRepository
     public function findAllWithRelations(): array
     {
         return $this->createQueryBuilder('s')
-            ->addSelect('b', 't', 'ar', 'mr', 'tp')
+            ->addSelect('b', 't', 'ar', 'mr', 'tp', 'bt')
             ->join('s.brand', 'b')
             ->leftJoin('s.type', 't')
             ->leftJoin('s.aRating', 'ar')
             ->leftJoin('s.mRating', 'mr')
             ->leftJoin('s.terpenes', 'tp')
+            ->leftJoin('s.batches', 'bt')
             ->orderBy('b.name', 'ASC')
             ->addOrderBy('s.name', 'ASC')
             ->getQuery()

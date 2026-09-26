@@ -2,8 +2,10 @@
 
 namespace App\Controller\Api;
 
+use App\Api\BatchList;
 use App\Api\JsonApi;
 use App\Api\Presenter;
+use App\Entity\Batch;
 use App\Entity\Strain;
 use App\Repository\BrandRepository;
 use App\Repository\RatingRepository;
@@ -86,6 +88,48 @@ class StrainController extends AbstractController
         return new Response(null, Response::HTTP_NO_CONTENT);
     }
 
+    /**
+     * Quick "add another batch" from the strain page, without resubmitting
+     * the whole strain. Returns the updated strain.
+     */
+    #[Route('/strains/{id<\d+>}/batches', name: 'api_strains_batch_add', methods: ['POST'])]
+    public function addBatch(Strain $strain, Request $request): JsonResponse
+    {
+        $data = $this->payload($request);
+        $rows = array_map(
+            static fn (Batch $b): array => ['id' => $b->getId(), 'batchNumber' => $b->getBatchNumber(), 'date' => $b->getDate()->format('Y-m-d')],
+            $strain->getBatches()->getValues(),
+        );
+        $newRow = \count($rows);
+        $rows[] = ['batchNumber' => $data['batchNumber'] ?? '', 'date' => $data['date'] ?? null];
+
+        $errors = [];
+        foreach (BatchList::apply($strain, $rows) as $path => $message) {
+            $errors[str_replace("batches.$newRow.", '', $path)] = $message;
+        }
+        if ([] !== $errors) {
+            return $this->invalid($errors);
+        }
+
+        $strain->touch();
+        $this->entityManager->flush();
+
+        return new JsonResponse(Presenter::strain($strain), Response::HTTP_CREATED);
+    }
+
+    #[Route('/strains/{id<\d+>}/batches/{batchId<\d+>}', name: 'api_strains_batch_delete', methods: ['DELETE'])]
+    public function deleteBatch(Strain $strain, int $batchId): JsonResponse
+    {
+        $batch = $strain->getBatches()->findFirst(static fn (int $i, Batch $b): bool => $b->getId() === $batchId)
+            ?? throw $this->createNotFoundException();
+
+        $strain->removeBatch($batch);
+        $strain->touch();
+        $this->entityManager->flush();
+
+        return new JsonResponse(Presenter::strain($strain));
+    }
+
     private function save(Strain $strain, Request $request, int $status): JsonResponse
     {
         $data = $this->payload($request);
@@ -109,6 +153,11 @@ class StrainController extends AbstractController
         }
         $strain->replaceTerpenes($terpenes);
 
+        // Absent means "leave the batches alone"; an empty list removes them all.
+        if (\array_key_exists('batches', $data)) {
+            $errors += BatchList::apply($strain, $data['batches']);
+        }
+
         foreach ($this->violations($this->validator->validate($strain)) as $path => $message) {
             $errors['brand' === $path ? 'brandId' : $path] ??= $message;
         }
@@ -116,6 +165,10 @@ class StrainController extends AbstractController
             return $this->invalid($errors);
         }
 
+        if (null !== $strain->getId()) {
+            // Batch-only edits don't touch the strain row, so bump it here.
+            $strain->touch();
+        }
         $this->entityManager->persist($strain);
         $this->entityManager->flush();
 

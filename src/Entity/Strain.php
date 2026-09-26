@@ -70,6 +70,16 @@ class Strain
     #[ORM\OrderBy(['name' => 'ASC'])]
     private Collection $terpenes;
 
+    /**
+     * Newest first. Cascade + orphan removal: batches are only ever edited
+     * through their strain.
+     *
+     * @var Collection<int, Batch>
+     */
+    #[ORM\OneToMany(targetEntity: Batch::class, mappedBy: 'strain', cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OrderBy(['date' => 'DESC', 'id' => 'DESC'])]
+    private Collection $batches;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -79,6 +89,7 @@ class Strain
     public function __construct()
     {
         $this->terpenes = new ArrayCollection();
+        $this->batches = new ArrayCollection();
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = $this->createdAt;
     }
@@ -235,6 +246,43 @@ class Strain
         }
 
         return $this;
+    }
+
+    /** @return Collection<int, Batch> */
+    public function getBatches(): Collection
+    {
+        return $this->batches;
+    }
+
+    public function addBatch(Batch $batch): static
+    {
+        if (!$this->batches->contains($batch)) {
+            $this->batches->add($batch);
+            $batch->setStrain($this);
+        }
+
+        return $this;
+    }
+
+    public function removeBatch(Batch $batch): static
+    {
+        $this->batches->removeElement($batch);
+
+        return $this;
+    }
+
+    /**
+     * Newest first - the collection is only DB-ordered when loaded, so
+     * batches added in this request need sorting too.
+     *
+     * @return list<Batch>
+     */
+    public function getBatchesNewestFirst(): array
+    {
+        $batches = $this->batches->getValues();
+        usort($batches, static fn (Batch $a, Batch $b): int => [$b->getDate(), $b->getId() ?? PHP_INT_MAX] <=> [$a->getDate(), $a->getId() ?? PHP_INT_MAX]);
+
+        return $batches;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

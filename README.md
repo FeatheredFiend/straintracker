@@ -16,6 +16,7 @@ origin like the warhammer app, on MariaDB/MySQL.
 | `strain_type`    | Lookup: Indica ↔ Sativa spectrum, ordered by `position`        |
 | `terpene`        | Lookup: name, aroma, chip colour                               |
 | `strain_terpene` | Many-to-many join: a strain's terpenes                         |
+| `batch`          | A strain's batches: date + batch number, unique per strain     |
 | `rating`         | Lookup: Fantastic / Nice / Mids / Terrible, with a score       |
 | `app_user`       | Sign-in accounts (`ROLE_ADMIN` gets the admin section)         |
 
