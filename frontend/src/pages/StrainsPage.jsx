@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../components/Icon.jsx'
 import MultiSelect from '../components/MultiSelect.jsx'
+import Pagination, { paginate } from '../components/Pagination.jsx'
 import { formatPrice, RatingPill, TerpeneChip, ThcMeter } from '../components/Pills.jsx'
 import { formatDate } from '../dates.js'
 import { useApi } from '../hooks/useApi.js'
@@ -19,6 +20,9 @@ const SORTS = {
 }
 
 // Batches arrive newest first; '' sorts strains with none to the end.
+const PAGE_SIZES = [12, 24, 48, 96]
+const DEFAULT_PAGE_SIZE = 24
+
 function latestBatchDate(strain) {
   return strain.batches[0]?.date ?? ''
 }
@@ -38,6 +42,7 @@ export default function StrainsPage() {
   const [params, setParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const navigate = useNavigate()
+  const listTop = useRef(null)
 
   const q = params.get('q') ?? ''
   const brand = params.get('brand') ?? ''
@@ -46,9 +51,14 @@ export default function StrainsPage() {
   const raterFilters = Object.fromEntries(RATERS.map((r) => [r.key, params.get(r.key) ?? '']))
   const sort = SORTS[params.get('sort')] ? params.get('sort') : 'brand'
   const view = params.get('view') === 'table' ? 'table' : 'cards'
+  const page = Number(params.get('page')) || 1
+  const perPage = PAGE_SIZES.includes(Number(params.get('per'))) ? Number(params.get('per')) : DEFAULT_PAGE_SIZE
 
+  // Any change other than turning the page (search, filter, sort, view,
+  // page size) starts again from page 1.
   const update = (changes) => {
     const next = new URLSearchParams(params)
+    if (!('page' in changes)) next.delete('page')
     for (const [key, value] of Object.entries(changes)) {
       if (value === '' || value == null || (Array.isArray(value) && !value.length)) next.delete(key)
       else next.set(key, Array.isArray(value) ? value.join(',') : value)
@@ -76,6 +86,12 @@ export default function StrainsPage() {
       return true
     })
     .sort(SORTS[sort].compare)
+  const paged = paginate(visible, page, perPage)
+
+  const goToPage = (n) => {
+    update({ page: n === 1 ? '' : n })
+    listTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const stats = useMemo(() => {
     const all = strains.data ?? []
@@ -113,7 +129,7 @@ export default function StrainsPage() {
         <Stat label="Both loved" value={stats.bothLoved} loading={strains.loading} accent />
       </section>
 
-      <section className="toolbar">
+      <section className="toolbar" ref={listTop}>
         <label className="search">
           <Icon name="search" />
           <input
@@ -200,14 +216,21 @@ export default function StrainsPage() {
         </div>
       ) : view === 'cards' ? (
         <div className="card-grid">
-          {visible.map((s) => <StrainCard key={s.id} strain={s} />)}
+          {paged.items.map((s) => <StrainCard key={s.id} strain={s} />)}
         </div>
       ) : (
-        <StrainTable strains={visible} sort={sort} onSort={(key) => update({ sort: key === 'brand' ? '' : key })} onOpen={(id) => navigate(`/strains/${id}`)} />
+        <StrainTable strains={paged.items} sort={sort} onSort={(key) => update({ sort: key === 'brand' ? '' : key })} onOpen={(id) => navigate(`/strains/${id}`)} />
       )}
 
       {!strains.loading && visible.length > 0 && (
-        <p className="result-count muted">Showing {visible.length} of {strains.data.length}</p>
+        <Pagination
+          paged={paged}
+          pageSize={perPage}
+          pageSizes={PAGE_SIZES}
+          onPageChange={goToPage}
+          onPageSizeChange={(n) => update({ per: n === DEFAULT_PAGE_SIZE ? '' : n })}
+          noun={visible.length === strains.data.length ? 'strains' : `matching strains (${strains.data.length} in total)`}
+        />
       )}
     </>
   )

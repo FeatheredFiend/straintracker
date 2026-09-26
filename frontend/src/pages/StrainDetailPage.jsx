@@ -3,11 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client.js'
 import Icon from '../components/Icon.jsx'
 import { ConfirmModal } from '../components/Modal.jsx'
+import Pagination, { paginate } from '../components/Pagination.jsx'
 import { formatPrice, RatingPill, TerpeneChip, ThcMeter } from '../components/Pills.jsx'
 import { useToast } from '../components/Toast.jsx'
 import { formatDate, todayIso } from '../dates.js'
 import { useApi } from '../hooks/useApi.js'
 import { RATERS } from '../raters.js'
+
+const BATCHES_PER_PAGE = 5
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -115,7 +118,9 @@ function BatchSection({ strain, onChange }) {
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
   const [removing, setRemoving] = useState(null)
+  const [page, setPage] = useState(1)
   const toast = useToast()
+  const paged = paginate(strain.batches, page, BATCHES_PER_PAGE)
 
   const add = async (e) => {
     e.preventDefault()
@@ -126,6 +131,7 @@ function BatchSection({ strain, onChange }) {
       setDraft({ batchNumber: '', date: todayIso() })
       setErrors({})
       setAdding(false)
+      setPage(1) // the new batch is usually the newest, at the top
     } catch (err) {
       setErrors(Object.keys(err.fields).length ? err.fields : { batchNumber: err.message })
     }
@@ -185,12 +191,12 @@ function BatchSection({ strain, onChange }) {
         !adding && <p className="muted">No batches recorded yet.</p>
       ) : (
         <ul className="batch-list">
-          {strain.batches.map((b, i) => (
+          {paged.items.map((b) => (
             <li key={b.id} className="batch-list__item">
               <div className="batch-list__info">
                 <span className="batch-list__date">{formatDate(b.date)}</span>
                 <code className="batch-list__number">{b.batchNumber}</code>
-                {i === 0 && <span className="batch-list__latest">Latest</span>}
+                {b.id === strain.batches[0].id && <span className="batch-list__latest">Latest</span>}
               </div>
               <button type="button" className="icon-btn icon-btn--danger" onClick={() => setRemoving(b)} aria-label={`Remove batch ${b.batchNumber}`}>
                 <Icon name="trash" size={16} />
@@ -199,6 +205,8 @@ function BatchSection({ strain, onChange }) {
           ))}
         </ul>
       )}
+
+      <Pagination paged={paged} pageSize={BATCHES_PER_PAGE} onPageChange={setPage} noun="batches" countOnlyWhenPaged />
 
       {removing && (
         <ConfirmModal

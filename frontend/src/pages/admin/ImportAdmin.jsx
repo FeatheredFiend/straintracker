@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import { api } from '../../api/client.js'
 import Icon from '../../components/Icon.jsx'
+import Pagination, { paginate } from '../../components/Pagination.jsx'
 import { useToast } from '../../components/Toast.jsx'
+
+const WARNINGS_PER_PAGE = 10
 
 export default function ImportAdmin() {
   const [file, setFile] = useState(null)
   const [report, setReport] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [page, setPage] = useState(1)
   const toast = useToast()
+  const warnings = paginate(report?.warnings ?? [], page, WARNINGS_PER_PAGE)
 
   const run = async (dryRun) => {
     const body = new FormData()
@@ -19,6 +24,7 @@ export default function ImportAdmin() {
     try {
       const result = await api.post('/api/admin/import', body)
       setReport(result)
+      setPage(1)
       if (!dryRun) toast(`Imported: ${result.created} added, ${result.updated} updated`)
     } catch (err) {
       setError(err.message)
@@ -72,10 +78,11 @@ export default function ImportAdmin() {
             <>
               <h4>Things tidied up or worth checking</h4>
               <ul className="warnings">
-                {report.warnings.map((w, i) => (
-                  <li key={i}><span className="warnings__row">Row {w.row}</span> {w.message}</li>
+                {warnings.items.map((w) => (
+                  <li key={`${w.row}-${w.message}`}><span className="warnings__row">Row {w.row}</span> {w.message}</li>
                 ))}
               </ul>
+              <Pagination paged={warnings} pageSize={WARNINGS_PER_PAGE} onPageChange={setPage} noun="notes" countOnlyWhenPaged />
             </>
           )}
         </div>

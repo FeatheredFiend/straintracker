@@ -3,6 +3,7 @@ import { api } from '../../api/client.js'
 import Field from '../../components/Field.jsx'
 import Icon from '../../components/Icon.jsx'
 import Modal, { ConfirmModal } from '../../components/Modal.jsx'
+import Pagination, { paginate } from '../../components/Pagination.jsx'
 import { RatingPill, TerpeneChip } from '../../components/Pills.jsx'
 import { useToast } from '../../components/Toast.jsx'
 import { useApi } from '../../hooks/useApi.js'
@@ -57,6 +58,7 @@ const CONFIG = {
 }
 
 const nameOf = (row) => row.name ?? row.label
+const PAGE_SIZES = [10, 25, 50]
 
 export default function LookupAdmin({ lookup }) {
   const config = CONFIG[lookup]
@@ -65,6 +67,8 @@ export default function LookupAdmin({ lookup }) {
   const [deleting, setDeleting] = useState(null)
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
   const toast = useToast()
 
   if (error) return <div className="alert alert--danger">{error.message}</div>
@@ -72,6 +76,7 @@ export default function LookupAdmin({ lookup }) {
   const visible = (rows ?? [])
     .filter((r) => nameOf(r).toLowerCase().includes(filter.trim().toLowerCase()))
     .sort(config.sort ?? (() => 0))
+  const paged = paginate(visible, page, pageSize)
 
   const remove = async () => {
     setBusy(true)
@@ -93,7 +98,7 @@ export default function LookupAdmin({ lookup }) {
         <div className="panel__tools">
           <label className="search search--small">
             <Icon name="search" size={16} />
-            <input type="search" placeholder={`Find a ${config.singular}…`} value={filter} onChange={(e) => setFilter(e.target.value)} aria-label={`Find a ${config.singular}`} />
+            <input type="search" placeholder={`Find a ${config.singular}…`} value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1) }} aria-label={`Find a ${config.singular}`} />
           </label>
           <button type="button" className="btn btn--primary" onClick={() => setEditing(config.blank)}>
             <Icon name="plus" /> Add {config.singular}
@@ -107,7 +112,7 @@ export default function LookupAdmin({ lookup }) {
         <p className="empty muted">Nothing here yet.</p>
       ) : (
         <ul className="lookup-list">
-          {visible.map((row) => (
+          {paged.items.map((row) => (
             <li key={row.id} className="lookup-list__item">
               <div className="lookup-list__main">{config.display(row)}</div>
               <span className="uses">{row.uses} strain{row.uses === 1 ? '' : 's'}</span>
@@ -130,6 +135,15 @@ export default function LookupAdmin({ lookup }) {
           ))}
         </ul>
       )}
+
+      <Pagination
+        paged={paged}
+        pageSize={pageSize}
+        pageSizes={PAGE_SIZES}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => { setPageSize(n); setPage(1) }}
+        noun={`${config.singular}s`}
+      />
 
       {editing && (
         <LookupForm

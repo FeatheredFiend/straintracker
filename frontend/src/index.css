@@ -518,7 +518,6 @@ button:disabled { cursor: not-allowed; }
 .th-sort.is-on { color: var(--accent); }
 .th-sort.is-on::after { content: ' ↓'; }
 
-.result-count { margin-top: 18px; text-align: center; font-size: 0.85rem; }
 
 .empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 64px 16px; text-align: center; color: var(--muted); }
 .empty h2 { color: var(--text); }
@@ -911,4 +910,42 @@ button:disabled { cursor: not-allowed; }
   .batch-add__actions { grid-column: 1 / -1; }
   .batch-add__actions .btn { flex: 1; }
   .batch-list__date { min-width: 0; }
+}
+
+/* ==========================================================================
+   Pagination
+   ========================================================================== */
+.pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; margin-top: 18px; }
+.pagination__summary { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.pagination__pages { display: flex; align-items: center; gap: 4px; }
+.pagination__btn {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-weight: 650;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.pagination__btn:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-2); }
+.pagination__btn:disabled { opacity: 0.4; }
+.pagination__btn.is-current { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.pagination__prev { transform: rotate(90deg); }
+.pagination__next { transform: rotate(-90deg); }
+.pagination__gap { min-width: 24px; text-align: center; color: var(--muted); }
+.pagination__compact { display: none; padding: 0 10px; font-weight: 650; font-size: 0.88rem; }
+.pagination__size { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.pagination__size .select { min-height: 38px; padding-block: 6px; }
+
+@media (max-width: 720px) {
+  .pagination { justify-content: center; }
+  .pagination__summary { width: 100%; text-align: center; }
+  .pagination__num, .pagination__gap { display: none; }
+  .pagination__compact { display: inline; }
+  .pagination__btn { min-width: 44px; height: 44px; }
 }

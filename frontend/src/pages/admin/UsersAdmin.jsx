@@ -4,10 +4,12 @@ import { useAuth } from '../../auth/AuthContext.jsx'
 import Field from '../../components/Field.jsx'
 import Icon from '../../components/Icon.jsx'
 import Modal, { ConfirmModal } from '../../components/Modal.jsx'
+import Pagination, { paginate } from '../../components/Pagination.jsx'
 import { useToast } from '../../components/Toast.jsx'
 import { useApi } from '../../hooks/useApi.js'
 
 const BLANK = { email: '', displayName: '', password: '', isAdmin: false }
+const PAGE_SIZES = [10, 25, 50]
 
 export default function UsersAdmin() {
   const { user: me } = useAuth()
@@ -15,9 +17,13 @@ export default function UsersAdmin() {
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
   const toast = useToast()
 
   if (error) return <div className="alert alert--danger">{error.message}</div>
+
+  const paged = paginate(users ?? [], page, pageSize)
 
   const remove = async () => {
     setBusy(true)
@@ -47,7 +53,7 @@ export default function UsersAdmin() {
         <div className="skeleton" style={{ height: 160 }} />
       ) : (
         <ul className="lookup-list">
-          {users.map((u) => (
+          {paged.items.map((u) => (
             <li key={u.id} className="lookup-list__item">
               <div className="lookup-list__main">
                 <span className="lookup-row">
@@ -78,6 +84,15 @@ export default function UsersAdmin() {
           ))}
         </ul>
       )}
+
+      <Pagination
+        paged={paged}
+        pageSize={pageSize}
+        pageSizes={PAGE_SIZES}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => { setPageSize(n); setPage(1) }}
+        noun="users"
+      />
 
       {editing && (
         <UserForm
