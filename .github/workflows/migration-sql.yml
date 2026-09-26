@@ -1,0 +1,62 @@
+name: Generate migration SQL
+
+# There's no SSH access on Hostinger shared hosting, so migrations can't run
+# there directly. This spins up a throwaway MariaDB matching Hostinger's
+# version, runs the migrations against it from empty, and prints the SQL
+# to paste into phpMyAdmin's SQL tab on the real database.
+#
+# This always prints the full schema from scratch. If you're adding a new
+# migration on top of an already-deployed database, only copy the SQL block
+# for the new migration version (each is clearly labelled in the output) -
+# the earlier statements are already applied in production.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  generate-sql:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mariadb:10.11
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: straintracker
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: ctype, iconv, intl, pdo_mysql, mbstring, zip
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Print migration SQL
+        env:
+          DATABASE_URL: mysql://root@127.0.0.1:3306/straintracker?serverVersion=10.11.18-MariaDB&charset=utf8mb4
+        # --dry-run alone only prints a summary count, not the actual SQL - it
+        # needs --write-sql to get the statements themselves. That file also
+        # doesn't include the doctrine_migration_versions bookkeeping table
+        # (Doctrine creates it out-of-band on first real run, which can't
+        # happen here since there's no console access on Hostinger), so
+        # prepend it by hand.
+        run: |
+          php bin/console doctrine:migrations:migrate --dry-run --write-sql=/tmp/migration.sql --no-interaction
+          echo '-- Run once if it does not already exist on the production database:'
+          echo 'CREATE TABLE IF NOT EXISTS doctrine_migration_versions (version VARCHAR(191) NOT NULL, executed_at DATETIME DEFAULT NULL, execution_time INT DEFAULT NULL, PRIMARY KEY(version)) DEFAULT CHARACTER SET utf8mb4;'
+          echo
+          cat /tmp/migration.sql
