@@ -8,15 +8,18 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Serves the Vite-built React app (public/app/index.html) for every
+ * Serves the Vite-built React app (<public dir>/app/index.html) for every
  * non-API URL, so React Router's client-side routes survive a refresh.
  * Same one-origin setup as the warhammer app: the API is same-origin, so
  * there's no CORS for Hostinger's WAF to trip over.
+ *
+ * The web folder is "public" locally but "public_html" on Hostinger (see
+ * APP_PUBLIC_DIR in .env and the deploy workflow).
  */
 class SpaController extends AbstractController
 {
     public function __construct(
-        #[Autowire('%kernel.project_dir%/public/app/index.html')]
+        #[Autowire('%kernel.project_dir%/%env(APP_PUBLIC_DIR)%/app/index.html')]
         private readonly string $spaIndexPath,
     ) {
     }

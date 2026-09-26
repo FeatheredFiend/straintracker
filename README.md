@@ -72,8 +72,11 @@ once to build its schema.
 Same approach as the warhammer app: GitHub Actions builds everything and
 uploads it over FTP, because the shared hosting has no SSH.
 
-1. **Subdomain:** create it in hPanel and point its document root at the
-   `public/` folder of wherever the FTP account uploads to.
+1. **Subdomain:** create it in hPanel. Hostinger serves its `public_html`
+   folder; point the FTP account at the folder *containing* `public_html`.
+   The workflow uploads the project there, with Symfony's `public/` folder
+   renamed to `public_html/` - so the code and `.env.local` sit outside the
+   web root.
 2. **Database:** create a MySQL database and user in hPanel.
 3. **Repo secrets** (Settings → Secrets and variables → Actions):
    `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `PROD_APP_SECRET`

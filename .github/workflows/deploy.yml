@@ -36,6 +36,7 @@ jobs:
           APP_ENV=prod
           APP_SECRET=${{ secrets.PROD_APP_SECRET }}
           DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
+          APP_PUBLIC_DIR=public_html
           ENVEOF
 
       - name: Set up Node
@@ -63,6 +64,14 @@ jobs:
         env:
           APP_ENV: prod
         run: php bin/console cache:clear --env=prod --no-interaction
+
+      # Hostinger serves <FTP root>/public_html, so Symfony's web folder is
+      # uploaded under that name. The rest of the project lands beside it,
+      # outside the web root. index.php only refers to ../vendor, so it
+      # doesn't care what its folder is called; SpaController reads the name
+      # from APP_PUBLIC_DIR (written to .env.local above).
+      - name: Rename public/ to public_html/ for Hostinger
+        run: mv public public_html
 
       - name: Deploy over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
