@@ -29,6 +29,9 @@ when@test:
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
 
+# Hostinger's PHP has no usable stderr: writing there fails with "Broken
+# pipe" and turns any logged line into a 500. So prod logs to var/log, and
+# deprecations aren't logged at all.
 when@prod:
     monolog:
         handlers:
@@ -40,16 +43,12 @@ when@prod:
                 channels: ["!deprecation"]
                 buffer_size: 50 # How many messages should be saved? Prevent memory leaks
             nested:
-                type: stream
-                path: php://stderr
+                type: rotating_file
+                path: "%kernel.logs_dir%/%kernel.environment%.log"
+                max_files: 14
                 level: debug
                 formatter: monolog.formatter.json
             console:
                 type: console
                 process_psr_3_messages: false
-                channels: ["!event", "!doctrine"]
-            deprecation:
-                type: stream
-                channels: [deprecation]
-                path: php://stderr
-                formatter: monolog.formatter.json
+                channels: ["!event", "!doctrine", "!deprecation"]
